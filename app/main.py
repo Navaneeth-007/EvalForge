@@ -31,7 +31,11 @@ EVIDENCE_PATH = Path(__file__).parent / "evidence" / "pilot.json"
 def load_model():
     global _pipe, _model_info
     if MODE == "walkthrough":
-        _model_info = {"mode": MODE, "adapter": None, "training_status": "pending"}
+        _model_info = {
+            "mode": MODE,
+            "adapter": None,
+            "training_status": "pilot_complete" if EVIDENCE_PATH.exists() else "pending",
+        }
         return
     if MODE != "model":
         raise ValueError("EVALFORGE_MODE must be walkthrough or model")
