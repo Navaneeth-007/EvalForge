@@ -25,6 +25,7 @@ async function initialize() {
       const evidence = await evidenceResponse.json();
       if (evidence.kind === 'recorded_predictions') {
         recorded = evidence;
+        document.querySelector('#source').textContent = 'Source: recorded GPU pilot; choose a question to compare.';
         question.replaceChildren(...evidence.predictions.map((item, index) => {
           const option = document.createElement('option'); option.value = String(index); option.textContent = item.question; return option;
         }));

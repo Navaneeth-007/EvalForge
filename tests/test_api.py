@@ -49,7 +49,7 @@ def test_results_do_not_invent_metrics(client, monkeypatch, tmp_path):
 def test_homepage(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "authored examples" in response.text
+    assert "recorded predictions" in response.text or "saved predictions" in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
 
 
