@@ -14,6 +14,8 @@ The deployed site is a **recorded experiment viewer**, not live model inference.
 
 ![EvalForge live walkthrough](docs/preview.png)
 
+[Recorded comparison preview](docs/recorded-comparison.png)
+
 ## What to review
 
 - **Model adaptation:** NF4 4-bit quantization; rank-16 LoRA on Phi-3's fused `qkv_proj` and `gate_up_proj` plus output/down projections. Prompt tokens are masked from the loss.
@@ -85,7 +87,7 @@ This pilot used one Tesla T4 and 25.2M trainable adapter parameters, with a 29.5
 
 - [Executed GPU notebook](notebooks/pilot_executed.ipynb)
 - [Complete experiment and failure analysis](docs/EXPERIMENT.md)
-- [All paired predictions and verified scores](reports/pilot/eval_results_verified.json)
+- [Scores and all 200 recorded predictions](app/evidence/pilot.json)
 - [Training manifest: configuration, revisions, hardware, package versions](reports/pilot/training_manifest.json)
 - [Model card](model_card.md)
 - [Download the adapter and evidence](https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.1.0-pilot)
