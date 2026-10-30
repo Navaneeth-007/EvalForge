@@ -19,3 +19,17 @@ Completion-only labels mask the system instruction, question, and schema with -1
 On notebook hosts with Python 3.13, create an isolated Python 3.11 environment (for example with uv) rather than downgrading the host's packages. Put the environment and model cache under the notebook's temporary directory so only experiment outputs are saved.
 
 Subsampling uses a seed-42 shuffle independently within each split. For a pilot, `--sample-size 1000 --epochs 1 --eval-n 200` selects 1,000 training and 200 validation rows before length filtering. Report the retained training count from the manifest. The selected validation artifact retains 200 raw prompts for paired generation; it is not the official test split.
+
+## Two T4 GPUs on Kaggle
+
+Use `notebooks/kaggle_training.ipynb`: it now defaults to the full training split, two epochs and two GPUs. Select GPU T4 x2, enable Internet, and enable file persistence before starting. Use Save Version → Save & Run All so a successful version retains `/kaggle/working` outputs. Download `evalforge-evidence.zip` from that version's Output tab and verify it before stopping/resetting or deleting the notebook. Persistence is not a substitute for downloading a backup.
+
+Equivalent command after notebook setup:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 python -m scripts.run_gpu --gpus 2 --epochs 2 --eval-n 200
+```
+
+The parent prepares data once, launches two torchrun workers, and evaluates once after both exit. Each worker loads the quantized model on its local GPU. Batch size 1 × accumulation 8 × 2 workers preserves an effective batch size of 16. Only rank zero writes the manifest/tokenizer. Trainer coordinates checkpoint saves. Gradient checkpointing uses non-reentrant mode with DDP unused-parameter detection disabled. The recorded peak allocation is rank zero only, not aggregate GPU memory.
+
+This path has not been tested on two physical GPUs locally; validate startup on Kaggle before committing to the long run. Do not assume an exact 2× speedup or identical numerical results to the single-GPU run. Paired generation evaluation remains a single process. For the old single-GPU behavior pass `--gpus 1` and expose only GPU 0.

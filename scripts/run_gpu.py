@@ -1,4 +1,4 @@
-"""Reproducible single-GPU experiment; run from the repository root on CUDA."""
+"""Reproducible single- or two-GPU experiment; run from the repository root on CUDA."""
 
 import argparse
 import gc
@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--sample-size", type=int)
     parser.add_argument("--eval-n", type=int, default=200)
+    parser.add_argument("--gpus", type=int, choices=[1, 2], default=1)
     args = parser.parse_args()
     import torch
     from huggingface_hub import hf_hub_download
@@ -30,6 +31,8 @@ def main():
 
     if not torch.cuda.is_available():
         raise RuntimeError("A CUDA GPU is required")
+    if torch.cuda.device_count() < args.gpus:
+        raise RuntimeError(f"Requested {args.gpus} GPUs, found {torch.cuda.device_count()}")
     archive = Path(
         hf_hub_download(ARCHIVE_REPO, "spider_data.zip", repo_type="dataset", revision=ARCHIVE_REVISION)
     )
@@ -54,21 +57,29 @@ def main():
         num_train_epochs=args.epochs,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
-        gradient_accumulation_steps=16,
+        gradient_accumulation_steps=16 // args.gpus,
         logging_steps=10,
         max_seq_length=2048,
     )
     # The prepared data already contains the selected sample; never re-prepare inside train().
     started = time.monotonic()
     torch.cuda.reset_peak_memory_stats()
-    trainer = train(use_4bit=True)
+    trainer = None
+    if args.gpus == 2:
+        subprocess.run([sys.executable, "-m", "torch.distributed.run", "--standalone",
+                        "--nproc_per_node=2", "-m", "scripts.train_distributed",
+                        "--epochs", str(args.epochs)], check=True)
+    else:
+        trainer = train(use_4bit=True)
     elapsed = time.monotonic() - started
     manifest_path = Path(TRAINING_CONFIG["output_dir"]) / "training_manifest.json"
     manifest = json.loads(manifest_path.read_text())
     manifest.update(
         gpu=torch.cuda.get_device_name(0),
         elapsed_seconds=elapsed,
-        peak_allocated_bytes=torch.cuda.max_memory_allocated(),
+        peak_allocated_bytes=manifest.get("peak_allocated_bytes_rank0", torch.cuda.max_memory_allocated()),
+        gpu_count=args.gpus,
+        effective_batch_size=16,
         archive_repo=ARCHIVE_REPO,
         archive_revision=ARCHIVE_REVISION,
         archive_sha256=digest,

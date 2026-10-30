@@ -61,7 +61,7 @@ def load_model_and_tokenizer(model_name: str, use_4bit: bool = True):
 
     model_kwargs = dict(
         trust_remote_code=False,
-        device_map="auto",
+        device_map={"": int(os.environ.get("LOCAL_RANK", "0"))} if use_4bit else "auto",
     )
 
     if use_4bit:
@@ -74,7 +74,10 @@ def load_model_and_tokenizer(model_name: str, use_4bit: bool = True):
 
     if use_4bit:
         # Required before applying LoRA to a quantized model
-        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+        model = prepare_model_for_kbit_training(
+            model, use_gradient_checkpointing=True,
+            gradient_checkpointing_kwargs={"use_reentrant": False},
+        )
 
     # Apply LoRA adapters
     lora_config = get_lora_config()
@@ -112,6 +115,7 @@ def build_training_args(output_dir: str, use_fp16: bool = True) -> TrainingArgum
         report_to="wandb" if os.getenv("WANDB_API_KEY") else "none",
         run_name=f"qlora-phi3-sql-ep{cfg['num_train_epochs']}",
         dataloader_pin_memory=False,
+        ddp_find_unused_parameters=False,
     )
 
 
@@ -186,13 +190,17 @@ def train(
         "quantized": use_4bit,
         "base_revision": getattr(model.config, "_commit_hash", None),
     }
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    (Path(output_dir) / "training_manifest.json").write_text(json.dumps(manifest, indent=2))
+    if trainer.is_world_process_zero():
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        manifest["world_size"] = int(os.environ.get("WORLD_SIZE", "1"))
+        manifest["peak_allocated_bytes_rank0"] = torch.cuda.max_memory_allocated() if torch.cuda.is_available() else 0
+        (Path(output_dir) / "training_manifest.json").write_text(json.dumps(manifest, indent=2))
 
     # Save best model
     logger.info(f"Saving adapter to {output_dir}/final")
     trainer.save_model(f"{output_dir}/final")
-    tokenizer.save_pretrained(f"{output_dir}/final")
+    if trainer.is_world_process_zero():
+        tokenizer.save_pretrained(f"{output_dir}/final")
 
     # Push to Hub
     if push_to_hub:
