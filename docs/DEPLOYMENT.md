@@ -8,7 +8,7 @@ Deploy one Python web service from the main branch:
 
 - Build: `pip install -r requirements.txt`
 - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`
-- Environment: `EVALFORGE_MODE=walkthrough`, `PYTHON_VERSION=3.11.11`
+- Environment: `EVALFORGE_MODE=walkthrough`, `PYTHON_VERSION=3.11.17`
 - HTTP health path: `/health` (200 only when the configured mode is ready)
 
 Alternatively use the included non-root Docker image. No database or secret is required. The application serves its UI and API from one origin. Free Render instances can sleep; first requests may take longer. A free-tier demo has no uptime guarantee.
