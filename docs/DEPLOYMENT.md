@@ -22,3 +22,5 @@ Use a machine with adequate model memory, install `requirements-ml.txt`, and set
 Readiness is established only after loading the model. One inference runs at a time; concurrent requests receive 429 with Retry-After. Input lengths are bounded. Failures return a generic error and log the exception on the server. The demo does not store submitted schemas or execute generated SQL.
 
 Before opening unrestricted model inference publicly, put authentication, per-user rate limits, infrastructure timeouts, and resource monitoring at the gateway. The current service is intended for a small portfolio audience, not an SLA-backed multi-tenant product. Keep public deployment in walkthrough mode until model evidence exists.
+
+The public runtime is audited in CI with pip-audit. The larger ML environment is isolated from the public host; its exact package versions are recorded with each experiment. Request bodies are bounded at 24 KB, including chunked uploads.
