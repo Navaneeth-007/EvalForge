@@ -11,3 +11,9 @@
 Configuration lives in `train/qlora_config.py`: seed 42, three epochs, LoRA rank 16 / alpha 32, dropout .05, 2048-token filtering, batch 4 with accumulation 4. These are initial settings, not empirically optimized hyperparameters. Compare at least one ablation (for example rank 8 vs 16) before describing them as tuned.
 
 Completion-only labels mask the system instruction, question, and schema with -100. The collator pads labels with -100. Training uses Hugging Face Trainer with an already constructed PEFT model; it does not depend on changing TRL interfaces.
+
+## Automated GPU experiment
+
+`CUDA_VISIBLE_DEVICES=0 python -m scripts.run_gpu` downloads the Spider database mirror at a pinned revision, checks its SHA-256, prepares data, runs three epochs with batch 1 / accumulation 16 on one GPU, and evaluates 200 held-out examples. The archive mirror credits the [original Yale distribution](https://yale-lily.github.io/spider); Spider is CC BY-SA 4.0. The manifest records the archive and schema hashes, Git revision, package versions, elapsed time, GPU, and peak allocated memory. Use `--sample-size 50 --epochs 1 --eval-n 10` only for a debugging experiment and report that scope explicitly.
+
+On notebook hosts with Python 3.13, create an isolated Python 3.11 environment (for example with uv) rather than downgrading the host's packages. Put the environment and model cache under the notebook's temporary directory so only experiment outputs are saved.
