@@ -1,0 +1,14 @@
+-r requirements.txt
+torch==2.5.1
+transformers==4.46.3
+peft==0.13.2
+accelerate==1.1.1
+datasets==3.1.0
+huggingface-hub==0.26.5
+bitsandbytes==0.44.1; sys_platform == "linux"
+sacrebleu==2.4.3
+bert-score==0.3.13
+wandb==0.18.7
+python-dotenv==1.0.1
+streamlit==1.40.2
+requests==2.32.3

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Env
+.env
+*.env.local
+
+# Data (large files — use DVC or HF datasets instead)
+data/processed/
+data/spider_databases/
+outputs/
+mlruns/
+
+# Model weights (push to HF Hub instead)
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Wandb
+wandb/
+
+# Coverage
+.coverage
+htmlcov/
+
+.venv/
+.pytest_cache/
+.ruff_cache/
