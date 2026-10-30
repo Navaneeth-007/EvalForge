@@ -6,7 +6,9 @@
 
 EvalForge connects the parts of a model adaptation project that are often shown separately: schema-aware data preparation, completion-only QLoRA training, paired base/adapter evaluation, and a deployable API with an interactive walkthrough.
 
-**Current status:** the application and training/evaluation code are implemented. No full Phi-3 training run, trained adapter, or benchmark improvement is claimed. The public walkthrough returns three authored examples and labels their source explicitly. Custom questions require model mode and a trained adapter.
+**Measured pilot:** adapted Phi-3 on a seed-42 selection of 1,000 Spider training examples (987 retained), then evaluated base and adapter on the same 200 held-out development questions. Execution accuracy increased **53.0% → 57.5%**; normalized exact match increased **11.0% → 26.0%**. All predictions, errors, hashes, and run metadata are published.
+
+The deployed site is a **recorded experiment viewer**, not live model inference. It lets reviewers inspect every base prediction, adapter prediction, schema, and reference SQL. A separate model mode serves the real adapter on suitable hardware.
 
 **[Live walkthrough](https://evalforge-024b.onrender.com) · [API reference](https://evalforge-024b.onrender.com/docs)**
 
@@ -68,22 +70,31 @@ python -m eval.run_eval \
   --n 200 --use-4bit --skip-bertscore
 ```
 
-The prepared dataset uses Spider validation for development. Any scores on this split are development scores, not an independent final test. The default evaluation artifact contains at most the first 200 validation examples; report the sample count and selection when publishing numbers.
+The prepared dataset uses Spider validation for development. Any scores on this split are development scores, not an independent final test. The full-data preparation path saves at most the first 200 validation examples. The published pilot instead uses a seed-42 random selection of 200 validation rows; its exact prompt file and hash are included.
 
 ## Results and evidence
 
-| Artifact | Status |
-| --- | --- |
-| Application tests | Run locally; CI runs on each push |
-| Full Phi-3 GPU training manifest | Pending GPU run |
-| Published LoRA adapter | Pending training |
-| Base vs. adapter benchmark | Pending evaluation |
+| Metric | Base Phi-3 | QLoRA adapter | Change |
+| --- | ---: | ---: | ---: |
+| Normalized exact match | 11.0% | 26.0% | +15.0 pp |
+| SQLite execution accuracy | 53.0% | 57.5% | +4.5 pp |
+| BLEU-4 (0–1) | 0.3878 | 0.6547 | +0.2669 |
+| BERTScore | Not measured | Not measured | Skipped |
 
-Metrics are intentionally not filled with synthetic numbers. See [evaluation methodology](docs/EVALUATION.md) and [model card](model_card.md). A tiny random-model test verifies training mechanics only; it cannot demonstrate model quality.
+This pilot used one Tesla T4 and 25.2M trainable adapter parameters, with a 29.5-minute training loop and 4.22 GiB peak CUDA allocation. The adapter fixed 30 base-model execution errors and introduced 21 regressions: a net gain of 9/200 questions. These are custom development metrics, not an official Spider test score or a statistically established improvement.
+
+- [Executed GPU notebook](notebooks/pilot_executed.ipynb)
+- [Complete experiment and failure analysis](docs/EXPERIMENT.md)
+- [All paired predictions and verified scores](reports/pilot/eval_results_verified.json)
+- [Training manifest: configuration, revisions, hardware, package versions](reports/pilot/training_manifest.json)
+- [Model card](model_card.md)
+- [Download the adapter and evidence](https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.1.0-pilot)
+
+Raw generated text is scored as SQL; code fences and prose count as failures. The metric therefore includes output-format compliance. The complete 200-example record is available for independent inspection, including regressions. BERTScore was skipped.
 
 ## Deploy
 
-The single-service walkthrough uses `requirements.txt`, starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, and needs no secrets. See [deployment and operations](docs/DEPLOYMENT.md) for Docker, Render, health checks, real inference configuration, and rollback.
+The single-service recorded viewer uses `requirements.txt`, starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, and needs no secrets. See [deployment and operations](docs/DEPLOYMENT.md) for Docker, Render, health checks, real inference configuration, and rollback.
 
 ```bash
 docker build -t evalforge .
