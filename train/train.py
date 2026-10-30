@@ -54,13 +54,13 @@ def load_model_and_tokenizer(model_name: str, use_4bit: bool = True):
     """
     logger.info(f"Loading model: {model_name}")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
     model_kwargs = dict(
-        trust_remote_code=True,
+        trust_remote_code=False,
         device_map="auto",
     )
 

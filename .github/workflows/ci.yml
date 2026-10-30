@@ -21,3 +21,18 @@ jobs:
       - run: ruff check .
       - run: pytest -q
       - run: python -m compileall -q app train eval scripts
+  ml-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install transformers==4.46.3 peft==0.13.2 accelerate==1.1.1 datasets==3.1.0 huggingface-hub==0.26.5 wandb==0.18.7
+      - run: pytest tests/test_training_smoke.py -q
+        env:
+          EVALFORGE_ML_TESTS: '1'
+          WANDB_MODE: disabled

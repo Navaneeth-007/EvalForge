@@ -43,11 +43,11 @@ DEFAULT_QUESTIONS = [
 
 
 def load_model(model_name: str, adapter_dir: str | None, no_4bit: bool):
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    kwargs = {"trust_remote_code": True}
+    kwargs = {"trust_remote_code": False}
     if not no_4bit and torch.cuda.is_available():
         from transformers import BitsAndBytesConfig
         kwargs["quantization_config"] = BitsAndBytesConfig(

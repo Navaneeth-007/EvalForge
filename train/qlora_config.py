@@ -4,7 +4,7 @@ QLoRA configuration for Phi-3-mini fine-tuning on Text-to-SQL.
 Design choices:
 - 4-bit NormalFloat (NF4) quantization — best quality/memory tradeoff for QLoRA
 - r=16, alpha=32 — conservative rank, doubles alpha (standard starting point)
-- Target modules: q_proj, k_proj, v_proj, o_proj — attention layers only
+- Target modules: fused qkv_proj and gate_up_proj, plus o_proj and down_proj
 - Dropout=0.05 — light regularisation for a task-specific fine-tune
 """
 

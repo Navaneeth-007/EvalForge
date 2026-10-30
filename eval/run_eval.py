@@ -57,7 +57,7 @@ def load_pipeline(
     """
     logger.info(f"Loading model: {model_name}" + (f" + adapter: {adapter_dir}" if adapter_dir else ""))
 
-    model_kwargs = {"trust_remote_code": True}
+    model_kwargs = {"trust_remote_code": False}
 
     if use_4bit and torch.cuda.is_available():
         from transformers import BitsAndBytesConfig
@@ -75,10 +75,10 @@ def load_pipeline(
     if adapter_dir:
         from peft import PeftModel
         model = PeftModel.from_pretrained(model, adapter_dir)
-        model = model.merge_and_unload()   # merge for faster inference
-        logger.info("LoRA adapter merged")
+        # Keep adapters attached; avoid merging into quantized weights.
+        logger.info("LoRA adapter loaded")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 

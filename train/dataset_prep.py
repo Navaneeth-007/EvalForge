@@ -169,7 +169,7 @@ def prepare_dataset(
 
     # Load tokenizer
     logger.info(f"Loading tokenizer: {tokenizer_name}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"   # required for causal LM training

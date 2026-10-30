@@ -70,7 +70,7 @@ def merge_and_push(
     base = AutoModelForCausalLM.from_pretrained(
         base_model, torch_dtype=torch.float16, device_map="cpu"
     )
-    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=False)
 
     logger.info("Loading LoRA adapter...")
     model = PeftModel.from_pretrained(base, adapter_dir)

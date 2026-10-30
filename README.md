@@ -8,6 +8,10 @@ EvalForge connects the parts of a model adaptation project that are often shown 
 
 **Current status:** the application and training/evaluation code are implemented. No full Phi-3 training run, trained adapter, or benchmark improvement is claimed. The public walkthrough returns three authored examples and labels their source explicitly. Custom questions require model mode and a trained adapter.
 
+**[Live walkthrough](https://evalforge-024b.onrender.com) · [API reference](https://evalforge-024b.onrender.com/docs)**
+
+![EvalForge live walkthrough](docs/preview.png)
+
 ## What to review
 
 - **Model adaptation:** NF4 4-bit quantization; rank-16 LoRA on Phi-3's fused `qkv_proj` and `gate_up_proj` plus output/down projections. Prompt tokens are masked from the loss.
@@ -33,6 +37,8 @@ Open [localhost:8000](http://localhost:8000) for the walkthrough, or [API docume
 pip install -r requirements-dev.txt
 ruff check .
 pytest -q
+# Optional: after installing requirements-ml.txt, exercise real tiny Phi-3 training/evaluation:
+EVALFORGE_ML_TESTS=1 pytest tests/test_training_smoke.py -q
 ```
 
 ## Architecture
