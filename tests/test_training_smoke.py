@@ -65,8 +65,8 @@ def test_prepare_train_save_adapter(tmp_path, monkeypatch):
     report = run_eval(base_model=str(tmp_path / 'base'), finetuned_model=None,
                       adapter_dir=str(tmp_path / 'run/final'),
                       eval_samples_path=str(tmp_path / 'data/processed/eval_samples.json'),
-                      n=1, output_path=str(tmp_path / 'evaluation.json'),
+                      n=2, output_path=str(tmp_path / 'evaluation.json'),
                       skip_bertscore=True, skip_execution=True)
-    assert len(report['predictions']) == 1
+    assert len(report['predictions']) == 2
     assert len(report['dataset_sha256']) == 64
     assert report['finetuned_model_metrics']['execution_accuracy'] is None

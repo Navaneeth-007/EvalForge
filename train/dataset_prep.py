@@ -152,9 +152,11 @@ def prepare_dataset(
     raw = load_spider()
 
     # Optional sub-sample for fast iteration
+    if sample_size is not None and sample_size <= 0:
+        raise ValueError("sample_size must be positive")
     if sample_size:
-        raw["train"] = raw["train"].select(range(min(sample_size, len(raw["train"]))))
-        raw["validation"] = raw["validation"].select(
+        raw["train"] = raw["train"].shuffle(seed=42).select(range(min(sample_size, len(raw["train"]))))
+        raw["validation"] = raw["validation"].shuffle(seed=42).select(
             range(min(max(1, sample_size // 5), len(raw["validation"])))
         )
         logger.info(f"Sub-sampled to {len(raw['train'])} train / {len(raw['validation'])} val")

@@ -76,6 +76,7 @@ def load_pipeline(
         logger.info("LoRA adapter loaded")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)
+    tokenizer.padding_side = "left"
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -119,9 +120,9 @@ def batch_generate(
 
     for i in range(0, total, batch_size):
         batch = samples[i : i + batch_size]
-        for sample in batch:
-            sql = generate_sql(pipe, sample["question"], sample["schema"])
-            predictions.append(sql)
+        prompts = [format_prompt(sample["question"], sample["schema"]) for sample in batch]
+        outputs = pipe(prompts, return_full_text=False, batch_size=batch_size)
+        predictions.extend(output[0]["generated_text"].split("<|end|>")[0].strip() for output in outputs)
 
         logger.info(f"  Generated {min(i + batch_size, total)}/{total}")
 
@@ -182,6 +183,7 @@ def run_eval(
     skip_bertscore: bool = False,
     skip_execution: bool = False,
     use_4bit: bool = False,
+    batch_size: int = 4,
 ):
     """Full before/after evaluation."""
 
@@ -200,7 +202,7 @@ def run_eval(
     import hashlib
     results = {"n": len(samples), "base_model": base_model,
                "dataset_sha256": hashlib.sha256(Path(eval_samples_path).read_bytes()).hexdigest(),
-               "decoding": {"do_sample": False, "max_new_tokens": 150}}
+               "decoding": {"do_sample": False, "max_new_tokens": 150, "batch_size": batch_size}}
 
     # ── BASE MODEL ────────────────────────────────────────────────────────────
     logger.info("\n" + "="*60)
@@ -210,7 +212,7 @@ def run_eval(
     t0 = time.time()
     base_pipe = load_pipeline(base_model, use_4bit=use_4bit)
     results["base_revision"] = getattr(base_pipe.model.config, "_commit_hash", None)
-    base_preds = batch_generate(base_pipe, samples)
+    base_preds = batch_generate(base_pipe, samples, batch_size=batch_size)
     del base_pipe  # free memory before loading fine-tuned
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
@@ -234,7 +236,7 @@ def run_eval(
             adapter_dir=adapter_dir or finetuned_model,
             use_4bit=use_4bit,
         )
-        ft_preds = batch_generate(ft_pipe, samples)
+        ft_preds = batch_generate(ft_pipe, samples, batch_size=batch_size)
         del ft_pipe
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
@@ -318,6 +320,7 @@ if __name__ == "__main__":
     parser.add_argument("--adapter-dir", default=None,
                         help="Local path to LoRA adapter directory")
     parser.add_argument("--eval-samples", default="./data/processed/eval_samples.json")
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--n", type=int, default=200,
                         help="Number of eval examples (default: 200)")
     parser.add_argument("--output", default="./outputs/eval_results.json")
@@ -344,4 +347,5 @@ if __name__ == "__main__":
         skip_bertscore=args.skip_bertscore,
         skip_execution=args.skip_execution,
         use_4bit=args.use_4bit,
+        batch_size=args.batch_size,
     )

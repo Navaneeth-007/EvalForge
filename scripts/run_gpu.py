@@ -60,7 +60,9 @@ def main():
     manifest.update(gpu=torch.cuda.get_device_name(0), elapsed_seconds=elapsed,
                     peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                     archive_repo=ARCHIVE_REPO, archive_revision=ARCHIVE_REVISION,
-                    archive_sha256=digest, tables_sha256=hashlib.sha256(tables.read_bytes()).hexdigest(),
+                    archive_sha256=digest, requested_sample_size=args.sample_size,
+                    sample_selection="seed-42 shuffle" if args.sample_size else "full training split",
+                    tables_sha256=hashlib.sha256(tables.read_bytes()).hexdigest(),
                     git_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                     packages=subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'], text=True).splitlines())
     manifest_path.write_text(json.dumps(manifest, indent=2))
