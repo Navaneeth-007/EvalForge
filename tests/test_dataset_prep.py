@@ -58,7 +58,8 @@ class TestExtractSchema:
             "table_names_original": ["orders", "customers"],
             "column_names_original": [
                 [-1, "*"],
-                [0, "id"], [0, "customer_id"],
+                [0, "id"],
+                [0, "customer_id"],
                 [1, "id"],
             ],
             "column_types": ["text", "number", "number", "number"],
@@ -73,14 +74,24 @@ class TestExtractSchema:
 
 def test_spider_requires_schema_join():
     from train.dataset_prep import format_example
+
     with pytest.raises(ValueError, match="Missing schema"):
         format_example({"db_id": "demo", "question": "Count rows", "query": "SELECT 1"})
 
 
 def test_schema_join_retains_database_id():
     from train.dataset_prep import format_example
-    metadata = {"table_names_original": ["users"], "column_names_original": [[0, "id"]],
-                "column_types": ["number"], "primary_keys": [0], "foreign_keys": []}
-    row = format_example({"db_id": "demo", "question": "Count users", "query": "SELECT COUNT(*) FROM users"}, {"demo": metadata})
+
+    metadata = {
+        "table_names_original": ["users"],
+        "column_names_original": [[0, "id"]],
+        "column_types": ["number"],
+        "primary_keys": [0],
+        "foreign_keys": [],
+    }
+    row = format_example(
+        {"db_id": "demo", "question": "Count users", "query": "SELECT COUNT(*) FROM users"},
+        {"demo": metadata},
+    )
     assert row["db_id"] == "demo"
     assert "CREATE TABLE users" in row["schema"]

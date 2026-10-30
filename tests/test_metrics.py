@@ -33,10 +33,7 @@ class TestExactMatch:
         assert exact_match("select * from users;", "select * from users")
 
     def test_different_queries(self):
-        assert not exact_match(
-            "select count(*) from users",
-            "select * from users"
-        )
+        assert not exact_match("select count(*) from users", "select * from users")
 
     def test_whitespace_normalised(self):
         assert exact_match("select  *  from  users", "select * from users")

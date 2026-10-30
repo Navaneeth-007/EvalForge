@@ -1,4 +1,6 @@
 """Single-service showcase with an explicit fixture mode and optional local inference."""
+
+import json
 import logging
 import os
 import threading
@@ -22,6 +24,7 @@ _pipe = None
 _model_info = {}
 _inference_lock = threading.Lock()
 STATIC = Path(__file__).parent / "static"
+EVIDENCE_PATH = Path(__file__).parent / "evidence" / "pilot.json"
 
 
 def load_model():
@@ -34,6 +37,7 @@ def load_model():
     if not ADAPTER_MODEL:
         raise ValueError("Model mode requires ADAPTER_MODEL; no silent base-model fallback")
     from eval.run_eval import load_pipeline
+
     _pipe = load_pipeline(BASE_MODEL, ADAPTER_MODEL, os.getenv("USE_4BIT", "false").lower() == "true")
     _model_info = {"mode": MODE, "base_model": BASE_MODEL, "adapter": ADAPTER_MODEL}
 
@@ -56,7 +60,11 @@ async def security_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'" if request.url.path != "/docs" else "frame-ancestors 'none'"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'"
+        if request.url.path != "/docs"
+        else "frame-ancestors 'none'"
+    )
     return response
 
 
@@ -68,30 +76,56 @@ def index():
 @app.get("/health")
 def health():
     ready = MODE == "walkthrough" or _pipe is not None
-    return JSONResponse({"status": "ok" if ready else "unavailable", "ready": ready, "model": _model_info}, status_code=200 if ready else 503)
+    return JSONResponse(
+        {"status": "ok" if ready else "unavailable", "ready": ready, "model": _model_info},
+        status_code=200 if ready else 503,
+    )
 
 
 @app.get("/examples")
 def examples():
-    return {"examples": [{"name": "Employee analytics", "schema": SCHEMA,
-                          "sample_questions": [item["question"] for item in EXAMPLES]}],
-            "mode": MODE}
+    return {
+        "examples": [
+            {
+                "name": "Employee analytics",
+                "schema": SCHEMA,
+                "sample_questions": [item["question"] for item in EXAMPLES],
+            }
+        ],
+        "mode": MODE,
+    }
 
 
 @app.get("/results")
 def results():
-    return {"status": "pending", "message": "No verified training run or benchmark results published yet.",
-            "base_model": BASE_MODEL, "metrics": None}
+    if EVIDENCE_PATH.exists():
+        return json.loads(EVIDENCE_PATH.read_text())
+    return {
+        "status": "pending",
+        "message": "No verified training run or benchmark results published yet.",
+        "base_model": BASE_MODEL,
+        "metrics": None,
+    }
 
 
 @app.post("/generate-sql", response_model=SQLGenerationResponse)
 def generate_sql(request: SQLGenerationRequest):
     started = time.monotonic()
     if MODE == "walkthrough":
-        example = next((item for item in EXAMPLES if item["question"].casefold() == request.question.casefold()
-                        and item["schema"].strip() == request.schema.strip()), None)
+        example = next(
+            (
+                item
+                for item in EXAMPLES
+                if item["question"].casefold() == request.question.casefold()
+                and item["schema"].strip() == request.schema.strip()
+            ),
+            None,
+        )
         if not example:
-            raise HTTPException(422, "Walkthrough mode supports only the listed examples. A trained adapter is required for custom questions.")
+            raise HTTPException(
+                422,
+                "Walkthrough mode supports only the listed examples. A trained adapter is required for custom questions.",
+            )
         sql = example["sql"]
         model = "authored-example (no model inference)"
     else:
@@ -113,5 +147,11 @@ def generate_sql(request: SQLGenerationRequest):
             raise HTTPException(503, "Inference unavailable; try again later") from None
         finally:
             _inference_lock.release()
-    return SQLGenerationResponse(question=request.question, schema=request.schema, sql=sql,
-                                 latency_ms=round((time.monotonic()-started)*1000), model=model, mode=MODE)
+    return SQLGenerationResponse(
+        question=request.question,
+        schema=request.schema,
+        sql=sql,
+        latency_ms=round((time.monotonic() - started) * 1000),
+        model=model,
+        mode=MODE,
+    )

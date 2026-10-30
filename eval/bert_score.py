@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from bert_score import score as bert_score_fn, BERTScorer
+
     BERT_SCORE_AVAILABLE = True
 except ImportError:
     BERT_SCORE_AVAILABLE = False
@@ -26,7 +27,7 @@ except ImportError:
 def compute_bertscore(
     predictions: list[str],
     gold_queries: list[str],
-    model_type: str = "roberta-large",   # swap to deberta-xlarge-mnli for best quality
+    model_type: str = "roberta-large",  # swap to deberta-xlarge-mnli for best quality
     batch_size: int = 32,
     device: Optional[str] = None,
 ) -> dict:
@@ -57,6 +58,7 @@ def compute_bertscore(
     logger.info(f"Computing BERTScore with model: {model_type}")
 
     import torch
+
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -95,6 +97,7 @@ class CachedBERTScorer:
             raise ImportError("bert-score not installed. Run: pip install bert-score")
 
         import torch
+
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.scorer = BERTScorer(model_type=model_type, device=self.device)
         logger.info(f"BERTScorer loaded: {model_type} on {self.device}")

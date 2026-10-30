@@ -74,9 +74,7 @@ def load_model_and_tokenizer(model_name: str, use_4bit: bool = True):
 
     if use_4bit:
         # Required before applying LoRA to a quantized model
-        model = prepare_model_for_kbit_training(
-            model, use_gradient_checkpointing=True
-        )
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     # Apply LoRA adapters
     lora_config = get_lora_config()
@@ -165,18 +163,29 @@ def train(
     training_args = build_training_args(output_dir, use_fp16=use_4bit)
     model.config.use_cache = False
     trainer = Trainer(
-        model=model, args=training_args, train_dataset=train_dataset,
-        eval_dataset=eval_dataset, processing_class=tokenizer, data_collator=collator,
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        processing_class=tokenizer,
+        data_collator=collator,
     )
 
     # Train
     logger.info("Starting training...")
     result = trainer.train()
     import json
-    manifest = {"base_model": cfg["model_name"], "seed": 42, "config": cfg,
-                "train_examples": len(train_dataset), "validation_examples": len(eval_dataset),
-                "metrics": result.metrics, "quantized": use_4bit,
-                "base_revision": getattr(model.config, "_commit_hash", None)}
+
+    manifest = {
+        "base_model": cfg["model_name"],
+        "seed": 42,
+        "config": cfg,
+        "train_examples": len(train_dataset),
+        "validation_examples": len(eval_dataset),
+        "metrics": result.metrics,
+        "quantized": use_4bit,
+        "base_revision": getattr(model.config, "_commit_hash", None),
+    }
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     (Path(output_dir) / "training_manifest.json").write_text(json.dumps(manifest, indent=2))
 
@@ -205,12 +214,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Fine-tune Phi-3-mini on Text-to-SQL")
-    parser.add_argument("--sample-size", type=int, default=None,
-                        help="Sub-sample for debug (e.g. 50)")
-    parser.add_argument("--no-4bit", action="store_true",
-                        help="Disable 4-bit quantization (for CPU/MPS debug)")
-    parser.add_argument("--push-to-hub", action="store_true",
-                        help="Push adapter to HF Hub after training")
+    parser.add_argument("--sample-size", type=int, default=None, help="Sub-sample for debug (e.g. 50)")
+    parser.add_argument(
+        "--no-4bit", action="store_true", help="Disable 4-bit quantization (for CPU/MPS debug)"
+    )
+    parser.add_argument("--push-to-hub", action="store_true", help="Push adapter to HF Hub after training")
     args = parser.parse_args()
 
     train(

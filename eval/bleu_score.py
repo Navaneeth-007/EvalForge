@@ -8,9 +8,9 @@ BLEU measures n-gram overlap between prediction and gold.
 For SQL, it captures surface-level generation quality across training.
 """
 
-
 try:
     import sacrebleu
+
     SACREBLEU_AVAILABLE = True
 except ImportError:
     SACREBLEU_AVAILABLE = False
@@ -22,6 +22,7 @@ def tokenise_sql(sql: str) -> str:
     sacrebleu handles word splitting; we just ensure SQL symbols are separated.
     """
     import re
+
     sql = sql.strip().lower()
     # Space around SQL punctuation
     sql = re.sub(r"([(),;=<>!*])", r" \1 ", sql)
@@ -55,7 +56,7 @@ def compute_bleu(
     result = sacrebleu.corpus_bleu(hypotheses, references)
 
     return {
-        "bleu4": round(result.score / 100, 4),   # convert % → fraction
+        "bleu4": round(result.score / 100, 4),  # convert % → fraction
         "bleu4_percent": round(result.score, 2),
         "precisions": result.precisions,
         "bp": round(result.bp, 4),

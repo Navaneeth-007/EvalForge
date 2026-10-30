@@ -50,6 +50,7 @@ def load_model(model_name: str, adapter_dir: str | None, no_4bit: bool):
     kwargs = {"trust_remote_code": False}
     if not no_4bit and torch.cuda.is_available():
         from train.qlora_config import get_bnb_config
+
         kwargs["quantization_config"] = get_bnb_config()
         kwargs["device_map"] = "auto"
     else:
@@ -59,6 +60,7 @@ def load_model(model_name: str, adapter_dir: str | None, no_4bit: bool):
 
     if adapter_dir:
         from peft import PeftModel
+
         model = PeftModel.from_pretrained(model, adapter_dir)
         model = model.merge_and_unload()
         print(f"✓ Adapter merged from {adapter_dir}")
@@ -91,8 +93,7 @@ def main():
     parser.add_argument("--question", default=None)
     parser.add_argument("--schema", default=DEFAULT_SCHEMA)
     parser.add_argument("--no-4bit", action="store_true")
-    parser.add_argument("--demo", action="store_true",
-                        help="Run all default questions and print a table")
+    parser.add_argument("--demo", action="store_true", help="Run all default questions and print a table")
     args = parser.parse_args()
 
     print(f"\nLoading: {args.model}")
@@ -100,20 +101,20 @@ def main():
     print("Model ready.\n")
 
     if args.demo:
-        print("="*60)
+        print("=" * 60)
         print("DEMO — Default Questions")
-        print("="*60)
+        print("=" * 60)
         print(f"Schema:\n{args.schema}\n")
         for q in DEFAULT_QUESTIONS:
             sql, latency = infer(pipe, q, args.schema)
             print(f"Q: {q}")
             print(f"→ {sql}")
-            print(f"   [{latency*1000:.0f}ms]\n")
+            print(f"   [{latency * 1000:.0f}ms]\n")
     elif args.question:
         sql, latency = infer(pipe, args.question, args.schema)
         print(f"Q: {args.question}")
         print(f"→ {sql}")
-        print(f"   [{latency*1000:.0f}ms]")
+        print(f"   [{latency * 1000:.0f}ms]")
     else:
         # Interactive mode
         print(f"Schema:\n{args.schema}\n")
@@ -125,7 +126,7 @@ def main():
             if q:
                 sql, latency = infer(pipe, q, args.schema)
                 print(f"SQL: {sql}")
-                print(f"[{latency*1000:.0f}ms]\n")
+                print(f"[{latency * 1000:.0f}ms]\n")
 
 
 if __name__ == "__main__":

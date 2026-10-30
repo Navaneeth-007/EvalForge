@@ -14,6 +14,7 @@ Requires: Spider database files
 """
 
 import time
+from collections import Counter
 import logging
 import os
 import sqlite3
@@ -42,15 +43,27 @@ def execute_sql(
     try:
         # URI read-only mode prevents modifying the benchmark or creating missing databases.
         conn = sqlite3.connect(Path(db_path).resolve().as_uri() + "?mode=ro", uri=True)
-        allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION,
-                   sqlite3.SQLITE_RECURSIVE}
-        conn.set_authorizer(lambda action, *_: sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY)
+        conn.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, 1_000_000)
+        conn.setlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH, 100_000)
+        allowed = {
+            sqlite3.SQLITE_SELECT,
+            sqlite3.SQLITE_READ,
+            sqlite3.SQLITE_FUNCTION,
+            sqlite3.SQLITE_RECURSIVE,
+        }
+        conn.set_authorizer(
+            lambda action, *_: sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY
+        )
         deadline = time.monotonic() + timeout
         conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
         cursor = conn.execute(sql)
-        rows = cursor.fetchmany(10001)
-        if len(rows) > 10000:
-            return None, "Result exceeds 10000-row evaluation limit"
+        rows = []
+        result_bytes = 0
+        for row in cursor:
+            result_bytes += sum(len(cell) if isinstance(cell, (str, bytes)) else 8 for cell in row)
+            if len(rows) >= 10000 or result_bytes > 10_000_000:
+                return None, "Result exceeds evaluation output limit"
+            rows.append(row)
         return rows, None
     except sqlite3.Error as error:
         return None, str(error)
@@ -62,15 +75,13 @@ def execute_sql(
 def result_sets_equal(rows_a: list, rows_b: list) -> bool:
     """
     Compare two result sets order-independently.
-    Converts to sorted tuples of strings for comparison.
+    Preserves duplicate rows and SQL NULL values; numeric equivalents compare equally.
     """
     if rows_a is None or rows_b is None:
         return False
 
-    def normalise_rows(rows):
-        return sorted([tuple((type(cell).__name__, repr(cell)) for cell in row) for row in rows])
-
-    return normalise_rows(rows_a) == normalise_rows(rows_b)
+    # Counter preserves duplicates and NULLs, while treating numeric 1 and 1.0 equally.
+    return Counter(map(tuple, rows_a)) == Counter(map(tuple, rows_b))
 
 
 def execution_accuracy_single(
@@ -105,8 +116,9 @@ def execution_accuracy_single(
     pred_rows, pred_err = execute_sql(prediction, str(db_path))
     gold_rows, gold_err = execute_sql(gold, str(db_path))
 
-    correct = (pred_rows == gold_rows if "order by" in gold.lower()
-               else result_sets_equal(pred_rows, gold_rows))
+    correct = (
+        pred_rows == gold_rows if "order by" in gold.lower() else result_sets_equal(pred_rows, gold_rows)
+    )
 
     return {
         "correct": correct,

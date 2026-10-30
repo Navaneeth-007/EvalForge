@@ -39,6 +39,7 @@ SYSTEM_PROMPT = (
     "write a correct SQL query. Return only the SQL query, no explanation."
 )
 
+
 def format_prompt(question: str, schema: str, sql: Optional[str] = None) -> str:
     """
     Build a Phi-3 chat-format prompt.
@@ -59,6 +60,7 @@ def format_prompt(question: str, schema: str, sql: Optional[str] = None) -> str:
 
 # ── Schema extraction ─────────────────────────────────────────────────────────
 
+
 def extract_schema(tables: dict) -> str:
     """
     Convert Spider table metadata into a compact CREATE TABLE schema string.
@@ -73,7 +75,7 @@ def extract_schema(tables: dict) -> str:
       }
     """
     table_names = tables["table_names_original"]
-    col_names = tables["column_names_original"]   # [table_idx, col_name]
+    col_names = tables["column_names_original"]  # [table_idx, col_name]
     col_types = tables["column_types"]
     primary_keys = set(tables["primary_keys"])
 
@@ -109,6 +111,7 @@ def extract_schema(tables: dict) -> str:
 
 # ── Dataset loading + formatting ──────────────────────────────────────────────
 
+
 def load_spider() -> DatasetDict:
     """Download Spider from Hugging Face."""
     logger.info("Loading Spider dataset from Hugging Face...")
@@ -116,8 +119,7 @@ def load_spider() -> DatasetDict:
 
     dataset = load_dataset("xlangai/spider")
     logger.info(
-        f"Train: {len(dataset['train'])} examples | "
-        f"Validation: {len(dataset['validation'])} examples"
+        f"Train: {len(dataset['train'])} examples | Validation: {len(dataset['validation'])} examples"
     )
     return dataset
 
@@ -139,7 +141,7 @@ def prepare_dataset(
     max_seq_length: int = 2048,
     output_dir: str = "./data/processed",
     tables_path: str = "./data/spider/tables.json",
-    sample_size: Optional[int] = None,   # set for quick debug runs
+    sample_size: Optional[int] = None,  # set for quick debug runs
 ) -> DatasetDict:
     """
     Full pipeline: load Spider → format prompts → tokenize → save.
@@ -156,8 +158,10 @@ def prepare_dataset(
         raise ValueError("sample_size must be positive")
     if sample_size:
         raw["train"] = raw["train"].shuffle(seed=42).select(range(min(sample_size, len(raw["train"]))))
-        raw["validation"] = raw["validation"].shuffle(seed=42).select(
-            range(min(max(1, sample_size // 5), len(raw["validation"])))
+        raw["validation"] = (
+            raw["validation"]
+            .shuffle(seed=42)
+            .select(range(min(max(1, sample_size // 5), len(raw["validation"]))))
         )
         logger.info(f"Sub-sampled to {len(raw['train'])} train / {len(raw['validation'])} val")
 
@@ -174,7 +178,7 @@ def prepare_dataset(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "right"   # required for causal LM training
+    tokenizer.padding_side = "right"  # required for causal LM training
 
     # Mask the entire prompt; train only on SQL completion tokens.
     def tokenize(example):
@@ -182,8 +186,11 @@ def prepare_dataset(
         prompt_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
         completion_ids = tokenizer(example["sql"] + "<|end|>", add_special_tokens=False)["input_ids"]
         ids = prompt_ids + completion_ids
-        return {"input_ids": ids, "attention_mask": [1] * len(ids),
-                "labels": [-100] * len(prompt_ids) + completion_ids}
+        return {
+            "input_ids": ids,
+            "attention_mask": [1] * len(ids),
+            "labels": [-100] * len(prompt_ids) + completion_ids,
+        }
 
     tokenized = formatted.map(tokenize, remove_columns=formatted["train"].column_names)
     # Drop overlength examples instead of cutting schema or removing all supervised tokens.
@@ -219,8 +226,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare Spider dataset for fine-tuning")
     parser.add_argument("--output-dir", default="./data/processed")
     parser.add_argument("--tables-path", default="./data/spider/tables.json")
-    parser.add_argument("--sample-size", type=int, default=None,
-                        help="Sub-sample for fast debug (e.g. 100)")
+    parser.add_argument("--sample-size", type=int, default=None, help="Sub-sample for fast debug (e.g. 100)")
     args = parser.parse_args()
 
     prepare_dataset(output_dir=args.output_dir, sample_size=args.sample_size, tables_path=args.tables_path)

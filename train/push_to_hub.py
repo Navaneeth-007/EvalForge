@@ -67,9 +67,7 @@ def merge_and_push(
     import torch
 
     logger.info("Loading base model for merge...")
-    base = AutoModelForCausalLM.from_pretrained(
-        base_model, torch_dtype=torch.float16, device_map="cpu"
-    )
+    base = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.float16, device_map="cpu")
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=False)
 
     logger.info("Loading LoRA adapter...")
@@ -90,15 +88,16 @@ def merge_and_push(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--adapter-dir", default="./outputs/phi3-sql-qlora/final")
-    parser.add_argument("--repo-id", required=True,
-                        help="e.g. your-username/evalforge-phi3-sql")
+    parser.add_argument("--repo-id", required=True, help="e.g. your-username/evalforge-phi3-sql")
     parser.add_argument("--private", action="store_true")
-    parser.add_argument("--merge", action="store_true",
-                        help="Merge adapter into base before pushing (larger upload)")
+    parser.add_argument(
+        "--merge", action="store_true", help="Merge adapter into base before pushing (larger upload)"
+    )
     args = parser.parse_args()
 
     if args.merge:
         from train.qlora_config import TRAINING_CONFIG
+
         merge_and_push(
             base_model=TRAINING_CONFIG["model_name"],
             adapter_dir=args.adapter_dir,
