@@ -35,7 +35,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from eval.exact_match import compute_exact_match_accuracy
 from eval.execution_acc import compute_execution_accuracy
 from eval.bleu_score import compute_bleu
-from eval.bert_score import compute_bertscore
 from train.dataset_prep import format_prompt
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s — %(levelname)s — %(message)s")
@@ -60,10 +59,8 @@ def load_pipeline(
     model_kwargs = {"trust_remote_code": False}
 
     if use_4bit and torch.cuda.is_available():
-        from transformers import BitsAndBytesConfig
-        model_kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16
-        )
+        from train.qlora_config import get_bnb_config
+        model_kwargs["quantization_config"] = get_bnb_config()
         model_kwargs["device_map"] = "auto"
     else:
         model_kwargs["torch_dtype"] = torch.float32
@@ -162,6 +159,7 @@ def run_metrics(
         metrics["execution_accuracy"] = None
 
     if not skip_bertscore:
+        from eval.bert_score import compute_bertscore
         logger.info("Computing BERTScore...")
         bs = compute_bertscore(predictions, gold_queries)
         metrics["bertscore_f1"] = bs.get("bertscore_f1")

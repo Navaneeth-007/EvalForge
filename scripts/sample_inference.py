@@ -49,10 +49,8 @@ def load_model(model_name: str, adapter_dir: str | None, no_4bit: bool):
 
     kwargs = {"trust_remote_code": False}
     if not no_4bit and torch.cuda.is_available():
-        from transformers import BitsAndBytesConfig
-        kwargs["quantization_config"] = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16
-        )
+        from train.qlora_config import get_bnb_config
+        kwargs["quantization_config"] = get_bnb_config()
         kwargs["device_map"] = "auto"
     else:
         kwargs["torch_dtype"] = torch.float32
