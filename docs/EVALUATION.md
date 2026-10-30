@@ -11,3 +11,14 @@ Execution matching on a single database can reward accidentally equivalent queri
 The default artifact samples the first 200 development examples, not the full benchmark. Report the number of examples, skipped metrics, split, selection rule, decoding settings, model revision, and hardware with every score. Database-separated validation does not protect against benchmark contamination in pretrained weights.
 
 Promote results only after a real training run: save the manifest and report, publish the matching adapter, fill in the model card, and link the immutable artifacts. Never relabel walkthrough fixtures as model output.
+
+## Replay saved predictions
+
+You can verify the execution scores on CPU without downloading model weights:
+
+```bash
+python -m eval.rescore --report outputs/eval_results.json \
+  --db-dir data/spider_databases --output outputs/eval_results_verified.json
+```
+
+Replay preserves both prediction sets and their original dataset hash, recomputes string/BLEU/execution metrics, and records the scoring code revision. This is useful when correcting evaluator behavior without changing the underlying model outputs.

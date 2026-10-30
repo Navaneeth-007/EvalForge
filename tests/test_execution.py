@@ -62,3 +62,23 @@ def test_result_types_and_blob_limit(database):
     _, path = database
     rows, error = execute_sql("SELECT zeroblob(2000000)", str(path))
     assert rows is None and error
+
+
+def test_saved_predictions_can_be_rescored_without_models(database):
+    from eval.rescore import rescore
+
+    root, _ = database
+    report = {
+        "n": 1,
+        "predictions": [
+            {
+                "sql": "SELECT 1.0",
+                "db_id": "demo",
+                "base_prediction": "SELECT 0",
+                "finetuned_prediction": "SELECT 1",
+            }
+        ],
+    }
+    replay = rescore(report, str(root))
+    assert replay["base_model_metrics"]["execution_accuracy"] == 0.0
+    assert replay["finetuned_model_metrics"]["execution_accuracy"] == 1.0
