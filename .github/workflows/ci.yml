@@ -19,6 +19,12 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
+      - run: node --check app/static/app.js
+      - name: Audit public runtime dependencies
+        if: matrix.python == '3.11'
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r requirements.txt --progress-spinner off
       - run: pytest -q
       - run: python -m compileall -q app train eval scripts
   ml-integration:

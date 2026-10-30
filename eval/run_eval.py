@@ -72,10 +72,8 @@ def load_pipeline(
     model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
 
     if adapter_dir:
-        from peft import PeftModel
-
-        model = PeftModel.from_pretrained(model, adapter_dir)
-        # Keep adapters attached; avoid merging into quantized weights.
+        # Native Transformers integration keeps Phi3ForCausalLM visible to the pipeline.
+        model.load_adapter(adapter_dir)
         logger.info("LoRA adapter loaded")
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)

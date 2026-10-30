@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.examples import EXAMPLES, SCHEMA
+from app.middleware import RequestSizeLimit
 from app.schemas.request import SQLGenerationRequest, SQLGenerationResponse
 from train.dataset_prep import format_prompt
 
@@ -50,6 +51,7 @@ async def lifespan(app):
 
 app = FastAPI(title="EvalForge", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.add_middleware(RequestSizeLimit)
 
 
 @app.middleware("http")

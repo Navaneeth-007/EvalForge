@@ -111,3 +111,9 @@ def test_model_errors_do_not_expose_internal_details(client, monkeypatch):
     assert result.status_code == 503
     assert "private implementation details" not in result.text
     assert not module._inference_lock.locked()
+
+
+def test_chunked_body_size_limit(client):
+    chunks = (b"x" * 12001 for _ in range(2))
+    response = client.post("/generate-sql", content=chunks, headers={"Content-Type": "application/json"})
+    assert response.status_code == 413
