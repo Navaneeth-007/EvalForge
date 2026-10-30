@@ -175,7 +175,8 @@ def train(
     import json
     manifest = {"base_model": cfg["model_name"], "seed": 42, "config": cfg,
                 "train_examples": len(train_dataset), "validation_examples": len(eval_dataset),
-                "metrics": result.metrics, "quantized": use_4bit}
+                "metrics": result.metrics, "quantized": use_4bit,
+                "base_revision": getattr(model.config, "_commit_hash", None)}
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     (Path(output_dir) / "training_manifest.json").write_text(json.dumps(manifest, indent=2))
 

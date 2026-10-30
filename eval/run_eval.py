@@ -82,11 +82,16 @@ def load_pipeline(
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    stop_ids = [tokenizer.eos_token_id]
+    end_id = tokenizer.convert_tokens_to_ids("<|end|>")
+    if end_id is not None and end_id != tokenizer.unk_token_id:
+        stop_ids.append(end_id)
     pipe = pipeline(
         "text-generation",
         model=model,
         tokenizer=tokenizer,
         max_new_tokens=150,
+        eos_token_id=list(set(stop_ids)),
         do_sample=False,        # greedy decoding for eval
         temperature=1.0,
         pad_token_id=tokenizer.eos_token_id,
@@ -206,6 +211,7 @@ def run_eval(
 
     t0 = time.time()
     base_pipe = load_pipeline(base_model, use_4bit=use_4bit)
+    results["base_revision"] = getattr(base_pipe.model.config, "_commit_hash", None)
     base_preds = batch_generate(base_pipe, samples)
     del base_pipe  # free memory before loading fine-tuned
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
