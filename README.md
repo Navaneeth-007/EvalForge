@@ -12,7 +12,17 @@ The deployed site is a **recorded experiment viewer**, not live model inference.
 
 **[Live walkthrough](https://evalforge-024b.onrender.com) · [API reference](https://evalforge-024b.onrender.com/docs)**
 
-[Recover everything after deleting local files](docs/RECOVERY.md)
+![EvalForge interface showing the Phi-3 QLoRA pipeline](docs/screenshots/overview.jpg)
+
+## Screenshots
+
+**Recorded base vs. adapter comparison.** This example asks for the average, minimum and maximum age of French singers. The base produces an invalid join; the adapter returns executable SQL matching the reference result. The viewer includes all 200 questions, including regressions.
+
+![Recorded comparison of base Phi-3 and the fine-tuned adapter](docs/screenshots/comparison.jpg)
+
+**Measured development results.** Two T4 GPUs, 6,918 retained training examples and two configured epochs. Execution accuracy improves from 50% to 59% on the same 200 development questions. The demo displays recorded predictions, rather than live model inference.
+
+![Full-data experiment results showing execution accuracy of 50 percent to 59 percent](docs/screenshots/results.jpg)
 
 ## What to review
 
