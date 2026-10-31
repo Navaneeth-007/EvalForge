@@ -25,16 +25,16 @@ async function initialize() {
       const evidence = await evidenceResponse.json();
       if (evidence.kind === 'recorded_predictions') {
         recorded = evidence;
-        document.querySelector('#source').textContent = 'Source: recorded GPU pilot; choose a question to compare.';
+        document.querySelector('#source').textContent = 'Source: recorded GPU experiment; choose a question to compare.';
         question.replaceChildren(...evidence.predictions.map((item, index) => {
           const option = document.createElement('option'); option.value = String(index); option.textContent = item.question; return option;
         }));
         schema.value = evidence.predictions[0].schema;
         button.textContent = 'Compare recorded predictions →';
-        document.querySelector('#mode').textContent = 'Recorded GPU pilot';
+        document.querySelector('#mode').textContent = 'Recorded full-data experiment';
         document.querySelector('#notice').textContent = evidence.message;
-        document.querySelector('#evidence-title').textContent = 'A measured first experiment.';
-        document.querySelector('#evidence-description').textContent = `${evidence.experiment.train_examples} training examples · ${evidence.training_config.num_train_epochs} epoch · ${evidence.evaluation.n} held-out development examples · ${evidence.experiment.gpu}. Pilot results, not an independent test benchmark. Values below show base → adapter.`;
+        document.querySelector('#evidence-title').textContent = 'Full-data training. Measured results.';
+        document.querySelector('#evidence-description').textContent = `${evidence.experiment.train_examples} training examples · ${evidence.training_config.num_train_epochs} configured epochs · ${evidence.evaluation.n} held-out development examples · ${evidence.experiment.gpu_count || 1} × ${evidence.experiment.gpu}. Development results, not an independent test benchmark. Values below show base → adapter.`;
         const format = value => value == null ? 'Not measured' : `${(value * 100).toFixed(1)}%`;
         const values = document.querySelectorAll('.metric-value');
         ['exact_match', 'execution_accuracy', 'bleu4'].forEach((key, index) => {
@@ -56,7 +56,7 @@ button.addEventListener('click', async () => {
       document.querySelector('#gold-sql').textContent = item.sql;
       document.querySelector('#base-comparison').hidden = false;
       document.querySelector('#reference').hidden = false;
-      document.querySelector('#source').textContent = `Source: recorded Phi-3 QLoRA pilot · database ${item.db_id}`;
+      document.querySelector('#source').textContent = `Source: recorded Phi-3 QLoRA experiment · database ${item.db_id}`;
       document.querySelector('#latency').textContent = 'Recorded comparison';
       copy.disabled = false;
       return;

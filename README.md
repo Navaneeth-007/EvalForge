@@ -6,15 +6,13 @@
 
 EvalForge connects the parts of a model adaptation project that are often shown separately: schema-aware data preparation, completion-only QLoRA training, paired base/adapter evaluation, and a deployable API with an interactive walkthrough.
 
-**Measured pilot:** adapted Phi-3 on a seed-42 selection of 1,000 Spider training examples (987 retained), then evaluated base and adapter on the same 200 held-out development questions. Execution accuracy increased **53.0% → 57.5%**; normalized exact match increased **11.0% → 26.0%**. All predictions, errors, hashes, and run metadata are published.
+**Measured full-data experiment:** trained Phi-3 QLoRA on 6,918 retained Spider training examples using **two T4 GPUs and two configured epochs**. On the same 200 development questions, execution accuracy increased **50.0% → 59.0%** and normalized exact match **14.5% → 23.0%**. The released adapter is the best validation-loss checkpoint; full predictions, regressions, hashes and metadata are published.
 
 The deployed site is a **recorded experiment viewer**, not live model inference. It lets reviewers inspect every base prediction, adapter prediction, schema, and reference SQL. A separate model mode serves the real adapter on suitable hardware.
 
 **[Live walkthrough](https://evalforge-024b.onrender.com) · [API reference](https://evalforge-024b.onrender.com/docs)**
 
-![EvalForge live walkthrough](docs/preview.png)
-
-[Recorded comparison preview](docs/recorded-comparison.png)
+[Recover everything after deleting local files](docs/RECOVERY.md)
 
 ## What to review
 
@@ -54,7 +52,8 @@ flowchart LR
     T --> A[Adapter + training manifest]
     A --> E[Paired evaluation + predictions]
     A --> M[Optional model API]
-    F[Authored fixtures] --> W[Public walkthrough API + UI]
+    E --> W[Public recorded viewer + API]
+    F[Authored fixtures] --> W
 ```
 
 ## Train on a CUDA GPU
@@ -78,19 +77,20 @@ The prepared dataset uses Spider validation for development. Any scores on this 
 
 | Metric | Base Phi-3 | QLoRA adapter | Change |
 | --- | ---: | ---: | ---: |
-| Normalized exact match | 11.0% | 26.0% | +15.0 pp |
-| SQLite execution accuracy | 53.0% | 57.5% | +4.5 pp |
-| BLEU-4 (0–1) | 0.3878 | 0.6547 | +0.2669 |
+| Normalized exact match | 14.5% | 23.0% | +8.5 pp |
+| SQLite execution accuracy | 50.0% | 59.0% | +9.0 pp |
+| BLEU-4 (0–1) | 0.3076 | 0.6979 | +0.3903 |
 | BERTScore | Not measured | Not measured | Skipped |
 
-This pilot used one Tesla T4 and 25.2M trainable adapter parameters, with a 29.5-minute training loop and 4.22 GiB peak CUDA allocation. The adapter fixed 30 base-model execution errors and introduced 21 regressions: a net gain of 9/200 questions. These are custom development metrics, not an official Spider test score or a statistically established improvement.
+Two T4 GPUs; 25.2M trainable parameters; 4.50-hour training loop and 4.52-hour training stage. The adapter fixed 30 base errors and introduced 12 regressions: a net gain of 18/200. Trainer completed 864 steps and reloaded the best validation-loss checkpoint (step 300). These are custom development results, not an official Spider test score.
 
-- [Executed GPU notebook](notebooks/pilot_executed.ipynb)
-- [Complete experiment and failure analysis](docs/EXPERIMENT.md)
-- [Scores and all 200 recorded predictions](app/evidence/pilot.json)
-- [Training manifest: configuration, revisions, hardware, package versions](reports/pilot/training_manifest.json)
+- [Executed two-GPU notebook](notebooks/full_data_executed.ipynb)
+- [Experiment and failure analysis](docs/EXPERIMENT.md)
+- [All 200 recorded comparisons](app/evidence/full-data.json)
+- [Training manifest](reports/full-data/training_manifest.json)
 - [Model card](model_card.md)
-- [Download the adapter and evidence](https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.1.0-pilot)
+- [Download model, reports and recovery backup](https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.2.0-full-data)
+- [Earlier pilot analysis](docs/PILOT.md) — different evaluation cohort; scores are not directly comparable.
 
 Raw generated text is scored as SQL; code fences and prose count as failures. The metric therefore includes output-format compliance. The complete 200-example record is available for independent inspection, including regressions. BERTScore was skipped.
 

@@ -1,107 +1,111 @@
-# Pilot experiment: Phi-3 Text-to-SQL QLoRA
+# Full-data experiment: Phi-3 Text-to-SQL QLoRA
 
-Run on 30 October 2026 using one Tesla T4 in Kaggle. Training source: `a2c83fc312eba6b805a435615dbae25ea457802f`. Scoring source: `1afb4185fa4d0a2cd35d28fb72c52a233929e01f`. Base model revision: `f39ac1d28e925b323eae81227eaba4464caced4e`.
+Completed on Kaggle with two Tesla T4 GPUs; evidence published 31 October 2026. Training source: `613a4b9291ab8e67b88d07f5e15b35486cb53091`. Base revision: `f39ac1d28e925b323eae81227eaba4464caced4e`.
 
-## Question
+## Protocol
 
-Does a small completion-only adapter improve the base model's ability to return executable SQL for unseen Spider database schemas?
+All 7,000 Spider training rows were considered; 82 exceeded 2,048 tokens, leaving 6,918. Original database-separated splits were preserved. Validation used 1,034 rows; paired generation evaluated the first 200 validation questions. No training-subset flag was used. Seed 42; two configured epochs; reported epoch 1.998265; 864 optimizer steps. DDP used one NF4 model replica per GPU, batch 1 per device and accumulation 8 (effective batch 16). Completion-only loss masks prompts and padding.
 
-## Protocol and scope
+The lowest validation loss was 0.235159 at checkpoint 300. Trainer reloaded this checkpoint after completing training. The final exported adapter is byte-identical to checkpoint 300, rather than the last checkpoint. Thus “two epochs” describes the completed training schedule, not the selected adapter's training age.
 
-A seed-42 shuffle selected 1,000 rows from the original 7,000-row training split and 200 rows from the separate 1,034-row validation split. Thirteen training rows exceeded the 2,048-token limit, leaving 987. The one-epoch configuration completed 61 optimizer steps (reported epoch fraction 0.988855). No validation score was used to choose between multiple runs.
-
-The base and adapter received identical prompts, greedy decoding, a 150-token output cap, and batch size 4. Predictions were saved and then rescored on CPU using the published evaluator. The prompt-file SHA-256 is `d02e6d6dfce1bc0c53e7d425fa2f672f735b7ec50f432e2bb836027dc8be3171`. Original and replay reports are both preserved.
+Base and adapter receive identical prompts, greedy decoding, batch size 4 and a 150-token generation cap. Prompt-file SHA256: `f8374119dfd3243bc73e2e5fd1d91a3effdc931d9ca115e74284653f99305cac`. Original reports and independent CPU replay are published under `reports/full-data/`; replay reproduced every aggregate metric.
 
 ## Results
 
 | Metric | Base Phi-3 | QLoRA adapter | Change |
 | --- | ---: | ---: | ---: |
-| Normalized exact match | 11.0% | 26.0% | +15.0 pp |
-| SQLite execution accuracy | 53.0% | 57.5% | +4.5 pp |
-| BLEU-4 (0–1) | 0.3878 | 0.6547 | +0.2669 |
+| Normalized exact match | 14.5% | 23.0% | +8.5 pp |
+| SQLite execution accuracy | 50.0% | 59.0% | +9.0 pp |
+| BLEU-4 (0–1) | 0.3076 | 0.6979 | +0.3903 |
 | BERTScore | Not measured | Not measured | Skipped |
 
 | Paired execution outcome | Questions |
 | --- | ---: |
-| Both correct | 85 |
-| Adapter fixes a base error | 30 |
-| Adapter regresses a base-correct case | 21 |
-| Both incorrect | 64 |
+| Both correct | 88 |
+| Base error fixed | 30 |
+| Base-correct prediction regressed | 12 |
+| Both incorrect | 70 |
 
-Base predictions produced 41 execution errors; adapter predictions produced 32. All gold queries executed successfully. Execution accuracy is strict result equality on one database, not a formal semantic-equivalence proof. Empty results can match accidentally, and column-order differences count as mismatches. The net 4.5-percentage-point gain on this small development sample is preliminary; it is not claimed to be statistically significant.
+The adapter adds 18 correct executions (118 versus 100). All gold queries executed successfully. Training loop: 16,191.20 seconds (4.50 hours); training stage including loading/saving: 16,274.90 seconds (4.52 hours). Rank-zero peak allocation: 4.35 GiB; this is not total memory across GPUs. Mean training loss: 0.110036. Adapter parameters: 25,165,824; base weights are not bundled.
 
-## Representative examples
+## Representative cases
 
-The examples below are the first matching cases in the stored evaluation order, not selected for presentation quality. 'Correct' here means the custom execution metric matched the reference result.
+These are the first matching cases in stored order, selected by execution outcome rather than presentation quality.
 
-### A base error fixed — example 5, `world_1`
+### Base error fixed — example 6, `concert_singer`
 
-What are the names of the countries that are in the continent of Europe and have a population of 80000?
+What is the average, minimum, and maximum age for all French singers?
 
 Reference:
 ```sql
-SELECT Name FROM country WHERE continent  =  "Europe" AND Population  =  "80000"
+SELECT avg(age) ,  min(age) ,  max(age) FROM singer WHERE country  =  'France'
 ```
 
 Base:
 ```sql
-SELECT Name FROM country WHERE Continent = 'Europe' AND Population = 80 ISBN:
-
-SELECT Name FROM country WHERE Continent = 'Europe' AND Population = 80000;
+SELECT AVG(s.Age) AS Average_Age, MIN(s.Age) AS Minimum_Age, MAX(s.Age) AS Maximum_Age
+FROM singer s
+JOIN singer_in_concert sic ON s.Singer_ID = sic.Singer_ID
+JOIN concert c ON sic.concert_ID = c.concert_ID
+JOIN stadium st ON c.Stadium_ID = st.Stadium_*
+WHERE s.Country = 'France';
 ```
 
 Adapter:
 ```sql
-SELECT Name FROM country WHERE Continent  =  'Europe' AND Population  =  80000
+SELECT avg(age),  min(age),  max(age) FROM singer WHERE country  =  'France'
 ```
 
-### An adapter regression — example 24, `world_1`
+### Adapter regression — example 24, `concert_singer`
 
-What are the countries where either English or Dutch is the official language ?
+For each stadium, how many concerts play there?
 
 Reference:
 ```sql
-select t1.name from country as t1 join countrylanguage as t2 on t1.code  =  t2.countrycode where t2.language  =  "english" and isofficial  =  "t" union select t1.name from country as t1 join countrylanguage as t2 on t1.code  =  t2.countrycode where t2.language  =  "dutch" and isofficial  =  "t"
+SELECT T2.name ,  count(*) FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id  =  T2.stadium_id GROUP BY T1.stadium_id
 ```
 
 Base:
 ```sql
-SELECT DISTINCT country.Name
-FROM country
-JOIN countrylanguage ON country.Code = countrylanguage.CountryCode
-WHERE countrylanguage.Language IN ('English', 'Dutch') AND countrylanguage.IsOfficial = 'Yes';
+SELECT s.Name, COUNT(c.concert_ID) AS Number_of_Concerts
+FROM stadium s
+JOIN concert c ON s.Stadium_ID = c.Stadium_ID
+GROUP BY s.Name;
 ```
 
 Adapter:
 ```sql
-SELECT T2.Name FROM countrylanguage AS T1 JOIN country AS T2 ON T1.CountryCode  =  T2.Code WHERE T1.Language  =  "English" OR T1.Language  =  "Dutch"
+SELECT T1.name,  count(*) FROM concert AS T1 JOIN stadium AS T2 ON T1.stadium_id  =  T2.stadium_id GROUP BY T1.name
 ```
 
-### A case both missed — example 1, `wta_1`
+### Both incorrect — example 7, `concert_singer`
 
-How many players are from each country?
+Show the name and the release year of the song by the youngest singer.
 
 Reference:
 ```sql
-SELECT count(*) ,  country_code FROM players GROUP BY country_code
+SELECT song_name ,  song_release_year FROM singer ORDER BY age LIMIT 1
 ```
 
 Base:
 ```sql
-SELECT country_code, COUNT(player_id) AS num_players
-FROM players
-GROUP BY country_code;
+SELECT Name, Song_release_year
+FROM singer
+ORDER BY Age ASC
+LIMIT 1;
 ```
 
 Adapter:
 ```sql
-SELECT country_code,  count(*) FROM players GROUP BY country_code
+SELECT name,  song_release_year FROM singer ORDER BY age ASC LIMIT 1
 ```
 
-## Interpretation and next experiments
+## Interpretation and limits
 
-The pilot improved the specified raw-SQL metric and output-format consistency, while retaining substantial semantic errors and introducing regressions. The base sometimes includes Markdown or extra text, which the raw-output protocol penalizes. A useful next ablation is to apply the same code-fence extraction to both models, then compare semantic errors separately from formatting errors. Other next steps are a larger training split, multiple seeds, rank/learning-rate ablations, and the official Spider test-suite evaluator on an untouched evaluation set.
+These are custom development metrics, not an official Spider test score or proof of SQL equivalence. Raw outputs are scored without stripping prose or Markdown. Single-database equality can reward accidentally matching empty results; projection order matters. The 200 questions are the first 200 validation rows, include paraphrases, and are not independent observations. Validation loss also selected the checkpoint, so these are not untouched test results. Only one seed was run; no statistical-significance claim is made.
 
-Single-database equality can give misleading successes. For example, a gold condition and an incorrect generated condition can both return no rows. Inspecting the stored queries is essential; an execution-match label alone does not prove the query correctly answers the question.
+The earlier pilot used a shuffled 200-row cohort, so its 57.5% adapter score is not directly comparable with this run's 59%. See [pilot analysis](PILOT.md). The previous single-GPU full-data run took 8.25 hours for the training stage; the rerun took 4.52 hours (observed 1.82× reduction). This is a comparison of separate runs, not a controlled scaling benchmark. The previous full-data adapter was not retained; its notebook is archived as an unretained run, not the released model.
 
-Spider-derived examples and report content retain the dataset's CC BY-SA 4.0 attribution: Yu et al., EMNLP 2018, https://yale-lily.github.io/spider.
+Next experiments: multiple seeds, output-format extraction applied symmetrically, rank/learning-rate ablations, and an untouched official test-suite evaluation. Inspect regressions before claiming generalization.
+
+Spider attribution: Yu et al., EMNLP 2018, CC BY-SA 4.0, https://yale-lily.github.io/spider.

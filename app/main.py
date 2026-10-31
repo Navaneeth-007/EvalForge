@@ -25,7 +25,7 @@ _pipe = None
 _model_info = {}
 _inference_lock = threading.Lock()
 STATIC = Path(__file__).parent / "static"
-EVIDENCE_PATH = Path(__file__).parent / "evidence" / "pilot.json"
+EVIDENCE_PATH = Path(__file__).parent / "evidence" / "full-data.json"
 
 
 def load_model():
@@ -34,7 +34,7 @@ def load_model():
         _model_info = {
             "mode": MODE,
             "adapter": None,
-            "training_status": "pilot_complete" if EVIDENCE_PATH.exists() else "pending",
+            "training_status": json.loads(EVIDENCE_PATH.read_text())["status"] if EVIDENCE_PATH.exists() else "pending",
         }
         return
     if MODE != "model":

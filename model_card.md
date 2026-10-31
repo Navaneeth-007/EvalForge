@@ -11,53 +11,49 @@ tags:
 pipeline_tag: text-generation
 ---
 
-# EvalForge Phi-3 SQL — pilot adapter
+# EvalForge Phi-3 SQL — full-data adapter
 
-A measured QLoRA pilot adapting Phi-3-mini-4k-instruct to schema-conditioned Text-to-SQL. This is a **one-epoch pilot**, not a full-data training run or an official Spider benchmark submission.
+NF4 QLoRA adaptation of Phi-3-mini-4k-instruct to schema-conditioned Text-to-SQL. Trained on the full retained Spider training split using two Tesla T4 GPUs and two configured epochs. The released adapter is the best validation-loss checkpoint (step 300), reloaded after the complete 864-step run.
 
-## Measured results
+## Measured development results
 
-Paired evaluation on the same 200 seed-42 development examples, with greedy decoding, batch size 4, and at most 150 new tokens:
+Paired greedy generation on the same first 200 Spider validation questions; batch size 4; maximum 150 new tokens. Independently replayed on CPU.
 
 | Metric | Base Phi-3 | QLoRA adapter | Change |
 | --- | ---: | ---: | ---: |
-| Normalized exact match | 11.0% | 26.0% | +15.0 pp |
-| SQLite execution accuracy | 53.0% | 57.5% | +4.5 pp |
-| BLEU-4 (0–1) | 0.3878 | 0.6547 | +0.2669 |
+| Normalized exact match | 14.5% | 23.0% | +8.5 pp |
+| SQLite execution accuracy | 50.0% | 59.0% | +9.0 pp |
+| BLEU-4 (0–1) | 0.3076 | 0.6979 | +0.3903 |
 | BERTScore | Not measured | Not measured | Skipped |
 
-Execution results: 85 both correct; 30 base errors fixed; 21 base-correct predictions regressed; 64 both incorrect. There were no gold-query execution errors. A 9-question net gain on 200 development questions does not establish generalization or statistical significance.
+88 both correct; 30 base errors fixed; 12 regressions; 70 both incorrect. No gold execution errors. These are custom development metrics, not an official Spider test score or proof of SQL equivalence. Raw outputs are scored without stripping prose or Markdown. Single-database equality can reward accidentally matching empty results; projection order matters. The 200 questions are the first 200 validation rows, include paraphrases, and are not independent observations. Validation loss also selected the checkpoint, so these are not untouched test results. Only one seed was run; no statistical-significance claim is made.
 
-Scores evaluate raw generated SQL: Markdown fences and prose count as failures. Normalized string match is a custom metric, not the official Spider structural evaluator. Single-database result equality can reward accidentally matching or empty results. See `docs/EVALUATION.md` and the complete reports in `reports/pilot/`.
+## Training configuration
 
-## Actual training run
-
-| Field | Measured value / configuration |
+| Field | Value |
 | --- | --- |
 | Base revision | `f39ac1d28e925b323eae81227eaba4464caced4e` |
-| Selected / retained training rows | 1,000 / 987 |
-| Filtered rows | 13 exceeding 2,048 tokens |
-| Validation / evaluation rows | 200 / 200 |
-| Configured epochs / reported epoch fraction | 1 / 0.988855 |
-| Optimizer steps | 61 |
-| GPU | One Tesla T4 |
-| Training loop time | 29.49 minutes |
-| Training stage wall time (including load/save) | 29.65 minutes |
-| Peak CUDA allocated memory | 4.22 GiB |
-| Trainable adapter parameters | 25,165,824 (approximately 0.65%) |
-| Final mean training loss | 0.293330 |
-| Method | NF4 4-bit, double quantization, FP16 compute |
+| Selected / retained training rows | 7,000 / 6,918 |
+| Validation / paired evaluation rows | 1,034 / 200 |
+| Configured / reported epochs | 2 / 1.998265 |
+| Completed steps / released checkpoint | 864 / 300 (best validation loss) |
+| Hardware | 2 × Tesla T4; DDP |
+| Training loop / stage wall time | 4.50 / 4.52 hours |
+| Peak allocation | 4.35 GiB on rank zero only |
+| Trainable parameters | 25,165,824 (~0.65%) |
+| Mean training loss | 0.110036 |
+| Quantization | NF4, double quantization, FP16 compute |
 | LoRA | rank 16, alpha 32, dropout 0.05 |
 | Modules | qkv_proj, o_proj, gate_up_proj, down_proj |
-| Batch / accumulation / learning rate | 1 / 16 / 2e-4 |
+| Per-GPU batch / accumulation / effective batch | 1 / 8 / 16 |
+| Learning rate / seed | 2e-4 / 42 |
 | Objective | Completion-only causal LM; prompt and padding labels masked |
-| Seed / selection | 42 / seeded shuffle within each original split |
 
-The Trainer reports approximately 0.989 completed epoch because of gradient accumulation at the end of the selected split. No early-stopping or hyperparameter-optimization claim is made. The manifest records the exact package environment and source commit.
+The manifest records package versions, source commit, data archive and schema hashes. See [experiment analysis](docs/EXPERIMENT.md) and `reports/full-data/`. The pilot is preserved separately; its evaluation cohort differs.
 
-## Use
+## Download and use
 
-Download the adapter and evidence archive from the repository's `v0.1.0-pilot` release and extract it. On a CUDA machine:
+Get `evalforge-v0.2.0-full-data.zip` from the [GitHub release](https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.2.0-full-data). Verify `SHA256SUMS.txt` and extract the ZIP. It contains `adapter/`, tokenizer files, reports and this card. Base weights download separately from Hugging Face.
 
 ```bash
 pip install -r requirements-ml.txt
@@ -65,10 +61,10 @@ EVALFORGE_MODE=model USE_4BIT=true ADAPTER_MODEL=/absolute/path/to/adapter \
   uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The public Render website shows saved predictions and scores. It does not host live Phi-3 inference. Weights are published as a GitHub release asset; no Hugging Face adapter repository is claimed.
+CUDA hardware is required for the quantized serving configuration. The public Render site shows all 200 recorded comparisons; it does not run live Phi-3 inference. No Hugging Face adapter repository is claimed.
 
 ## Intended use and limitations
 
-Research, education, and portfolio review of model adaptation. Queries require review before use against real data. This pilot is limited by its training subset, a single seed, 200 development examples, output-format sensitivity, and a simplified SQLite metric. Common failures include incorrect joins, missing filters, projection order, and scalar subqueries used where multiple rows are required. There is no independent test-set score or production database-access capability.
+Research, education and portfolio review. Review queries before using them against real data. Generated SQL is never executed by the public API. This is a reproducible portfolio deployment, not an SLA-backed database product. Failures include joins, filters, projections, subqueries and output formatting. There is no independent test-set score.
 
-The base model and dataset retain their own terms. Spider attribution: Yu et al., EMNLP 2018, CC BY-SA 4.0, https://yale-lily.github.io/spider. Code is licensed separately by this repository.
+Base-model terms apply separately. Spider-derived examples and reports: Yu et al., EMNLP 2018, CC BY-SA 4.0, https://yale-lily.github.io/spider. Repository code is MIT licensed.

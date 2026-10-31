@@ -22,10 +22,11 @@ def build_evidence(manifest, report):
         for value in metrics[label].values():
             if value is not None and not 0 <= value <= 1:
                 raise ValueError("Metric values must be in [0, 1]")
+    full_data = manifest.get("sample_selection") == "full training split"
     return {
-        "status": "pilot_complete",
+        "status": "full_data_complete" if full_data else "pilot_complete",
         "kind": "recorded_predictions",
-        "message": "Recorded GPU pilot predictions; this service does not run live model inference.",
+        "message": "Recorded GPU experiment predictions; this service does not run live model inference.",
         "experiment": {
             key: manifest.get(key)
             for key in [
@@ -37,6 +38,9 @@ def build_evidence(manifest, report):
                 "requested_sample_size",
                 "sample_selection",
                 "gpu",
+                "gpu_count",
+                "world_size",
+                "effective_batch_size",
                 "elapsed_seconds",
                 "peak_allocated_bytes",
                 "archive_repo",

@@ -1,0 +1,15 @@
+{
+  "release": "https://github.com/Navaneeth-007/EvalForge/releases/tag/v0.2.0-full-data",
+  "assets": [
+    {
+      "name": "evalforge-v0.2.0-full-data.zip",
+      "size": 93989161,
+      "sha256": "53e8872161401dc5ba715bf5005a4a050bc7c87bf5e5b3ed2f927d91fd0fa2d8"
+    },
+    {
+      "name": "kaggle-output-full-data.zip",
+      "size": 649341157,
+      "sha256": "50f2a7e5fcb7b95b0b2a9bf8ca144418b910f99c9feb615d64e0d044b68e74f9"
+    }
+  ]
+}

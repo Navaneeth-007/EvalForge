@@ -25,3 +25,24 @@ def test_preserves_regressions_instead_of_claiming_improvement():
     assert evidence["metrics"]["adapter"]["execution_accuracy"] == 0.7
     assert evidence["metrics"]["base"]["execution_accuracy"] == 0.8
     assert evidence["kind"] == "recorded_predictions"
+
+
+def test_published_full_data_evidence_matches_traceable_reports():
+    import hashlib
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    report = json.loads((root / 'reports/full-data/eval_results_verified.json').read_text())
+    manifest = json.loads((root / 'reports/full-data/training_manifest.json').read_text())
+    evidence = json.loads((root / 'app/evidence/full-data.json').read_text())
+    prompts = root / 'reports/full-data/eval_samples.json'
+    assert hashlib.sha256(prompts.read_bytes()).hexdigest() == report['dataset_sha256']
+    assert evidence == build_evidence(manifest, report)
+    assert evidence['status'] == 'full_data_complete'
+    assert manifest['gpu_count'] == manifest['world_size'] == 2
+    assert len(evidence['predictions']) == report['n'] == 200
+    for key in ['base_model_metrics', 'finetuned_model_metrics']:
+        details = report[key]['execution_details']
+        assert sum(row['correct'] for row in details['per_example']) == details['num_correct']
+        assert details['execution_accuracy'] == details['num_correct'] / report['n']
